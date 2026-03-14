@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>テーマプレビュー</title>
+    <style>
+      :root {
+        --radius: 14px;
+        --gap: 14px;
+        --font: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: var(--font);
+        color: #111;
+        background: #f3f3f3;
+      }
+
+      .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 18px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .note {
+        margin: 0 0 16px;
+        opacity: 0.85;
+        font-size: 14px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      @media (max-width: 920px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .card {
+        border-radius: var(--radius);
+        padding: 16px;
+        border: none;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12), 0 10px 28px rgba(0, 0, 0, 0.06);
+      }
+
+      .theme-title {
+        font-weight: 800;
+        margin: 0 0 10px;
+      }
+
+      .sample {
+        border-radius: calc(var(--radius) - 2px);
+        padding: 14px;
+        border: none;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+        margin-top: 10px;
+      }
+
+      .result-title {
+        font-weight: 800;
+        font-size: 16px;
+        margin: 0 0 10px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        position: relative;
+      }
+
+      .result-title::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        border-radius: 10px 0 0 10px;
+        background: var(--accent);
+      }
+
+      .kv {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-left: 12px;
+      }
+
+      .kv-row {
+        display: grid;
+        grid-template-columns: 200px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+      }
+
+      .kv-key {
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .kv-val {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        font-size: 15px;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--light);
+        font-weight: 800;
+        font-size: 12px;
+        letter-spacing: 0.02em;
+      }
+
+      .badge.ok {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .badge.ng {
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+
+      .site {
+        padding-left: 12px;
+      }
+
+      .site-header,
+      .site-row {
+        display: grid;
+        grid-template-columns: 220px 70px minmax(0, 1fr);
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+      }
+
+      .site-header {
+        background: var(--light);
+        font-weight: 800;
+        font-size: 13px;
+        text-align: left;
+        margin-bottom: 8px;
+      }
+
+      .site-row {
+        background: var(--face);
+      }
+
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .sw {
+        border: 1px solid rgba(0, 0, 0, 0.15);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      .sw > div {
+        height: 28px;
+      }
+
+      .sw > p {
+        margin: 0;
+        padding: 6px 8px;
+        font-size: 12px;
+        opacity: 0.9;
+        background: rgba(255, 255, 255, 0.65);
+      }
+
+      /* Theme shells */
+      .t {
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .t .card {
+        background: var(--face);
+      }
+
+      .t .sample {
+        background: var(--face);
+      }
+
+      .t .result-title {
+        background: var(--light);
+        border: 1px solid var(--border);
+      }
+
+      /* Themes */
+      .theme--bluegray {
+        --bg: #e8edf4;
+        --face: #dfe7f2;
+        --light: #edf2f9;
+        --border: #b7c3d6;
+        --shadow: #c9d3e3;
+        --accent: #2d79c7;
+        --danger: #c42b1c;
+        --text: #111111;
+      }
+
+      .theme--warmgray {
+        --bg: #efede9;
+        --face: #e7e2da;
+        --light: #f4f1ec;
+        --border: #c9c1b6;
+        --shadow: #d9d3ca;
+        --accent: #2d79c7;
+        --danger: #c42b1c;
+        --text: #111111;
+      }
+
+      .theme--sage {
+        --bg: #e7eee8;
+        --face: #dde8de;
+        --light: #f0f5f1;
+        --border: #b9cbbd;
+        --shadow: #cddbd0;
+        --accent: #2d79c7;
+        --danger: #c42b1c;
+        --text: #111111;
+      }
+
+      .theme--dark {
+        --bg: #1e1f22;
+        --face: #2a2d31;
+        --light: #33373c;
+        --border: #4a4f55;
+        --shadow: #000000;
+        --accent: #53a0f2;
+        --danger: #ff5a4f;
+        --text: #f2f2f2;
+      }
+
+      .theme--dark .sw > p {
+        background: rgba(0, 0, 0, 0.35);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="page">
+      <h1>テーマプレビュー（4案）</h1>
+      <p class="note">
+        各テーマは「背景・カード・見出し・OK/NGバッジ・表ヘッダー」の雰囲気を再現しています。実アプリへは CSS の変数を差し替えるだけで適用できます。
+      </p>
+
+      <div class="grid">
+        <section class="t theme--bluegray card">
+          <h2 class="theme-title">1) ブルーグレー</h2>
+          <div class="sample">
+            <div class="result-title">通信確認</div>
+            <div class="kv">
+              <div class="kv-row">
+                <div class="kv-key">DNS名前解決（google.com）</div>
+                <div class="kv-val"><span class="badge ok">OK</span></div>
+              </div>
+              <div class="kv-row">
+                <div class="kv-key">IPアドレス</div>
+                <div class="kv-val"><span class="badge ng">NG</span> <span>未取得</span></div>
+              </div>
+            </div>
+
+            <div class="result-title" style="margin-top: 14px">サイト診断</div>
+            <div class="site">
+              <div class="site-header">
+                <div>サイト</div>
+                <div>結果</div>
+                <div>詳細</div>
+              </div>
+              <div class="site-row">
+                <div>example.com</div>
+                <div><span class="badge ok">OK</span></div>
+                <div>200 / OK</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="swatches">
+            <div class="sw"><div style="background: var(--bg)"></div><p>bg #e8edf4</p></div>
+            <div class="sw"><div style="background: var(--face)"></div><p>face #dfe7f2</p></div>
+            <div class="sw"><div style="background: var(--light)"></div><p>light #edf2f9</p></div>
+            <div class="sw"><div style="background: var(--border)"></div><p>border #b7c3d6</p></div>
+            <div class="sw"><div style="background: var(--accent)"></div><p>accent</p></div>
+          </div>
+        </section>
+
+        <section class="t theme--warmgray card">
+          <h2 class="theme-title">2) ウォームグレー</h2>
+          <div class="sample">
+            <div class="result-title">基本情報</div>
+            <div class="kv">
+              <div class="kv-row">
+                <div class="kv-key">日時</div>
+                <div class="kv-val">2026/03/14 12:34</div>
+              </div>
+              <div class="kv-row">
+                <div class="kv-key">プロキシ</div>
+                <div class="kv-val">OFF</div>
+              </div>
+            </div>
+
+            <div class="result-title" style="margin-top: 14px">サイト診断</div>
+            <div class="site">
+              <div class="site-header">
+                <div>サイト</div>
+                <div>結果</div>
+                <div>詳細</div>
+              </div>
+              <div class="site-row">
+                <div>news.example</div>
+                <div><span class="badge ng">NG</span></div>
+                <div>timeout / タイムアウト</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="swatches">
+            <div class="sw"><div style="background: var(--bg)"></div><p>bg #efede9</p></div>
+            <div class="sw"><div style="background: var(--face)"></div><p>face #e7e2da</p></div>
+            <div class="sw"><div style="background: var(--light)"></div><p>light #f4f1ec</p></div>
+            <div class="sw"><div style="background: var(--border)"></div><p>border #c9c1b6</p></div>
+            <div class="sw"><div style="background: var(--accent)"></div><p>accent</p></div>
+          </div>
+        </section>
+
+        <section class="t theme--sage card">
+          <h2 class="theme-title">3) セージ（グリーン系）</h2>
+          <div class="sample">
+            <div class="result-title">通信確認</div>
+            <div class="kv">
+              <div class="kv-row">
+                <div class="kv-key">Wi‑Fi</div>
+                <div class="kv-val"><span class="badge ok">OK</span></div>
+              </div>
+              <div class="kv-row">
+                <div class="kv-key">ローカルエリア接続</div>
+                <div class="kv-val"><span class="badge ng">NG</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="swatches">
+            <div class="sw"><div style="background: var(--bg)"></div><p>bg #e7eee8</p></div>
+            <div class="sw"><div style="background: var(--face)"></div><p>face #dde8de</p></div>
+            <div class="sw"><div style="background: var(--light)"></div><p>light #f0f5f1</p></div>
+            <div class="sw"><div style="background: var(--border)"></div><p>border #b9cbbd</p></div>
+            <div class="sw"><div style="background: var(--accent)"></div><p>accent</p></div>
+          </div>
+        </section>
+
+        <section class="t theme--dark card">
+          <h2 class="theme-title">4) ダーク</h2>
+          <div class="sample">
+            <div class="result-title">サイト診断</div>
+            <div class="site">
+              <div class="site-header">
+                <div>サイト</div>
+                <div>結果</div>
+                <div>詳細</div>
+              </div>
+              <div class="site-row">
+                <div>bank.example</div>
+                <div><span class="badge ok">OK</span></div>
+                <div>TLS OK</div>
+              </div>
+              <div class="site-row" style="margin-top: 8px">
+                <div>video.example</div>
+                <div><span class="badge ng">NG</span></div>
+                <div>dns_failed / 名前解決失敗</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="swatches">
+            <div class="sw"><div style="background: var(--bg)"></div><p>bg #1e1f22</p></div>
+            <div class="sw"><div style="background: var(--face)"></div><p>face #2a2d31</p></div>
+            <div class="sw"><div style="background: var(--light)"></div><p>light #33373c</p></div>
+            <div class="sw"><div style="background: var(--border)"></div><p>border #4a4f55</p></div>
+            <div class="sw"><div style="background: var(--accent)"></div><p>accent</p></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>

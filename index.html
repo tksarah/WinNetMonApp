@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>通信状況確認アプリ</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+
+  <body>
+    <main class="container">
+      <div class="header-bar">
+        <h1 class="header-title">通信状況確認アプリ</h1>
+        <div class="font-controls" aria-label="文字サイズ">
+          <span class="font-controls-label">文字</span>
+          <button id="font-small" type="button" class="font-btn" aria-label="文字サイズ 小">小</button>
+          <button id="font-medium" type="button" class="font-btn" aria-label="文字サイズ 標準">標準</button>
+          <button id="font-large" type="button" class="font-btn" aria-label="文字サイズ 大">大</button>
+          <button id="font-xlarge" type="button" class="font-btn" aria-label="文字サイズ 特大">特大</button>
+        </div>
+      </div>
+      <p class="hint">困ったときに「診断開始」を押して、画面の内容をスマホで写真をとり、健史にLINEで送ってください。</p>
+
+      <details class="panel">
+        <summary class="panel-summary">診断対象（最大5件）</summary>
+        <div class="panel-body">
+          <div id="site-settings" class="site-settings"></div>
+          <div class="row">
+            <button id="save-sites" type="button">保存</button>
+            <span id="save-status" class="status"></span>
+          </div>
+        </div>
+      </details>
+
+      <div class="row">
+        <button id="run-btn" type="button">診断開始</button>
+        <span id="status" class="status"></span>
+      </div>
+
+      <section class="panel">
+        <h2>診断結果</h2>
+        <div id="results" class="results">未実行</div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f1ec"/>
+      <stop offset="1" stop-color="#e7e2da"/>
+    </linearGradient>
+  </defs>
+
+  <!-- warm gray background (original) -->
+  <rect x="64" y="64" width="896" height="896" rx="180" fill="url(#bg)"/>
+  <rect x="96" y="96" width="832" height="832" rx="160" fill="none" stroke="#2d79c7" stroke-width="48"/>
+
+  <!-- simple "diagnostic" panel -->
+  <rect x="220" y="260" width="584" height="440" rx="60" fill="#f4f1ec" stroke="#2d79c7" stroke-width="36"/>
+
+  <!-- heartbeat / connectivity line -->
+  <path d="M 280 500 L 380 500 L 430 420 L 490 600 L 560 450 L 610 520 L 744 520" fill="none" stroke="#2d79c7" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- small alert dot (NG emphasis) -->
+  <circle cx="748" cy="678" r="56" fill="#c42b1c"/>
+  <path d="M 748 642 L 748 700" stroke="#ffffff" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="748" cy="728" r="12" fill="#ffffff"/>
+</svg>
