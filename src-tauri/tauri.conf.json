@@ -15,7 +15,8 @@
       {
         "title": "通信状況確認アプリ",
         "width": 900,
-        "height": 700
+        "height": 700,
+        "visible": false
       }
     ],
     "security": {

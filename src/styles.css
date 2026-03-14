@@ -196,6 +196,30 @@ h2 {
   padding-left: 12px;
 }
 
+.kv-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 10px;
+  border-radius: 10px;
+  background-color: var(--win-light);
+  border: 1px solid var(--win-dark);
+}
+
+.kv-group-title {
+  font-weight: 700;
+  font-size: 0.95em;
+  letter-spacing: 0.01em;
+}
+
+.kv-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 12px;
+}
+
 .kv-row {
   display: grid;
   grid-template-columns: 220px 1fr;

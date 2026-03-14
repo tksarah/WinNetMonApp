@@ -56,11 +56,28 @@ pub struct DiagnosticsReport {
     pub sites: Vec<SiteCheck>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IpStackPreference {
+    Ipv4,
+    Ipv6,
+    Unknown,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct NetworkBasics {
     pub adapters: Vec<AdapterBasics>,
     pub ip_ok: bool,
     pub ip_address: Option<String>,
+    pub ipv4_ok: bool,
+    pub ipv4_address: Option<String>,
+    pub ipv6_ok: bool,
+    pub ipv6_address: Option<String>,
+    pub stack_preference: IpStackPreference,
+    pub ipv4_internet_ok: bool,
+    pub ipv4_rtt_ms: Option<u128>,
+    pub ipv6_internet_ok: bool,
+    pub ipv6_rtt_ms: Option<u128>,
     pub dns_ok: bool,
 }
 
@@ -116,8 +133,8 @@ async fn collect_network_basics() -> NetworkBasics {
     let mut found_lan = false;
     let mut found_wifi = false;
 
-    let mut candidate_ip: Option<String> = None;
-    let mut any_ip = false;
+    let mut candidate_ipv4: Option<String> = None;
+    let mut candidate_ipv6: Option<String> = None;
 
     #[cfg(windows)]
     {
@@ -138,10 +155,16 @@ async fn collect_network_basics() -> NetworkBasics {
                     }
 
                     for ip in adapter.ip_addresses() {
-                        any_ip = true;
-                        if candidate_ip.is_none() {
-                            if let Some(best) = select_best_ip(*ip) {
-                                candidate_ip = Some(best);
+                        match *ip {
+                            std::net::IpAddr::V4(v4) => {
+                                if candidate_ipv4.is_none() {
+                                    candidate_ipv4 = select_best_ipv4(v4);
+                                }
+                            }
+                            std::net::IpAddr::V6(v6) => {
+                                if candidate_ipv6.is_none() {
+                                    candidate_ipv6 = select_best_ipv6(v6);
+                                }
                             }
                         }
                     }
@@ -161,16 +184,20 @@ async fn collect_network_basics() -> NetworkBasics {
     // DNS: google.com を引けるか
     let dns_ok = lookup_host("google.com", 443).await;
 
+    // どちらがメインか（推定）：IPv4/IPv6それぞれで外向きTCP接続できるかを軽く確認
+    let (stack_preference, ipv4_internet_ok, ipv4_rtt_ms, ipv6_internet_ok, ipv6_rtt_ms) =
+        probe_stack_preference().await;
+
     // IP取得: 使えるIPが取れているか（リンクローカル/APIPAだけならNG）
-    let ip_ok = candidate_ip.is_some();
-    let ip_address = if ip_ok {
-        candidate_ip
-    } else if any_ip {
-        // 何かしらのIPはあるが、リンクローカル等しか無い場合はNGのまま、値は出さない
-        None
-    } else {
-        None
-    };
+    let ipv4_ok = candidate_ipv4.is_some();
+    let ipv6_ok = candidate_ipv6.is_some();
+    let ip_ok = ipv4_ok || ipv6_ok;
+
+    // 互換用（従来表示）：まずIPv4、無ければIPv6
+    let ip_address = candidate_ipv4.clone().or_else(|| candidate_ipv6.clone());
+
+    let ipv4_address = if ipv4_ok { candidate_ipv4 } else { None };
+    let ipv6_address = if ipv6_ok { candidate_ipv6 } else { None };
 
     let adapters = vec![
         AdapterBasics {
@@ -187,8 +214,81 @@ async fn collect_network_basics() -> NetworkBasics {
         adapters,
         ip_ok,
         ip_address,
+        ipv4_ok,
+        ipv4_address,
+        ipv6_ok,
+        ipv6_address,
+        stack_preference,
+        ipv4_internet_ok,
+        ipv4_rtt_ms,
+        ipv6_internet_ok,
+        ipv6_rtt_ms,
         dns_ok,
     }
+}
+
+async fn probe_stack_preference() -> (IpStackPreference, bool, Option<u128>, bool, Option<u128>) {
+    use std::net::SocketAddr;
+    use std::time::Instant;
+    use tokio::net::{lookup_host, TcpStream};
+    use tokio::time::timeout;
+
+    let addrs = match lookup_host(("google.com", 443)).await {
+        Ok(a) => a.collect::<Vec<SocketAddr>>(),
+        Err(_) => Vec::new(),
+    };
+
+    let mut v4_addr: Option<SocketAddr> = None;
+    let mut v6_addr: Option<SocketAddr> = None;
+    for a in addrs {
+        match a {
+            SocketAddr::V4(_) => {
+                if v4_addr.is_none() {
+                    v4_addr = Some(a);
+                }
+            }
+            SocketAddr::V6(_) => {
+                if v6_addr.is_none() {
+                    v6_addr = Some(a);
+                }
+            }
+        }
+        if v4_addr.is_some() && v6_addr.is_some() {
+            break;
+        }
+    }
+
+    async fn probe_one(addr: Option<SocketAddr>) -> (bool, Option<u128>) {
+        if let Some(a) = addr {
+            let start = Instant::now();
+            let res = timeout(std::time::Duration::from_secs(2), TcpStream::connect(a)).await;
+            match res {
+                Ok(Ok(_stream)) => (true, Some(start.elapsed().as_millis() as u128)),
+                _ => (false, None),
+            }
+        } else {
+            (false, None)
+        }
+    }
+
+    let (ipv4_ok, ipv4_ms) = probe_one(v4_addr).await;
+    let (ipv6_ok, ipv6_ms) = probe_one(v6_addr).await;
+
+    let pref = match (ipv4_ok, ipv6_ok) {
+        (true, false) => IpStackPreference::Ipv4,
+        (false, true) => IpStackPreference::Ipv6,
+        (true, true) => {
+            // 両方OKなら、単純に速い方を優先とする（あくまで推定）
+            if ipv6_ms.unwrap_or(u128::MAX) <= ipv4_ms.unwrap_or(u128::MAX) {
+                IpStackPreference::Ipv6
+            } else {
+                IpStackPreference::Ipv4
+            }
+        }
+        _ => IpStackPreference::Unknown,
+    };
+
+    (pref, ipv4_ok, ipv4_ms, ipv6_ok, ipv6_ms)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -221,30 +321,27 @@ fn classify_adapter(name: &str) -> Option<AdapterKind> {
     None
 }
 
-fn select_best_ip(ip: std::net::IpAddr) -> Option<String> {
-    match ip {
-        std::net::IpAddr::V4(v4) => {
-            if v4.is_loopback() {
-                return None;
-            }
-            let o = v4.octets();
-            // APIPA (169.254.x.x) は「IPはあるが通信できない」ことが多いので候補から外す
-            if o[0] == 169 && o[1] == 254 {
-                return None;
-            }
-            Some(v4.to_string())
-        }
-        std::net::IpAddr::V6(v6) => {
-            if v6.is_loopback() {
-                return None;
-            }
-            // IPv6リンクローカル fe80::/10 も候補から外す
-            if v6.is_unicast_link_local() {
-                return None;
-            }
-            Some(v6.to_string())
-        }
+fn select_best_ipv4(v4: std::net::Ipv4Addr) -> Option<String> {
+    if v4.is_loopback() {
+        return None;
     }
+    let o = v4.octets();
+    // APIPA (169.254.x.x) は「IPはあるが通信できない」ことが多いので候補から外す
+    if o[0] == 169 && o[1] == 254 {
+        return None;
+    }
+    Some(v4.to_string())
+}
+
+fn select_best_ipv6(v6: std::net::Ipv6Addr) -> Option<String> {
+    if v6.is_loopback() {
+        return None;
+    }
+    // IPv6リンクローカル fe80::/10 も候補から外す
+    if v6.is_unicast_link_local() {
+        return None;
+    }
+    Some(v6.to_string())
 }
 
 async fn check_one(client: &reqwest::Client, name: &str, url: &str) -> SiteCheck {

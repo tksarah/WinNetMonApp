@@ -38,10 +38,21 @@ type DiagnosticsReport = {
   sites: SiteCheck[];
 };
 
+type IpStackPreference = "ipv4" | "ipv6" | "unknown";
+
 type NetworkBasics = {
   adapters: AdapterBasics[];
   ip_ok: boolean;
   ip_address: string | null;
+  ipv4_ok: boolean;
+  ipv4_address: string | null;
+  ipv6_ok: boolean;
+  ipv6_address: string | null;
+  stack_preference: IpStackPreference;
+  ipv4_internet_ok: boolean;
+  ipv4_rtt_ms: number | null;
+  ipv6_internet_ok: boolean;
+  ipv6_rtt_ms: number | null;
   dns_ok: boolean;
 };
 
@@ -162,9 +173,17 @@ function okNgLabel(status: SiteStatus): "OK" | "NG" {
 }
 
 function renderResultsHtml(report: DiagnosticsReport): string {
-  const ipOk = report.basics.ip_ok ? "OK" : "NG";
+  const ipv4Ok = report.basics.ipv4_ok ? "OK" : "NG";
+  const ipv6Ok = report.basics.ipv6_ok ? "OK" : "NG";
   const dnsOk = report.basics.dns_ok ? "OK" : "NG";
   const proxy = proxyLabel(report.proxy);
+
+  const prefLabel =
+    report.basics.stack_preference === "ipv4"
+      ? "IPv4"
+      : report.basics.stack_preference === "ipv6"
+        ? "IPv6"
+        : "不明";
 
   const adapterLines = report.basics.adapters.map((a) => {
     return `<div class="kv-row kv-sub">
@@ -205,11 +224,30 @@ function renderResultsHtml(report: DiagnosticsReport): string {
       <div class="kv">
         ${adapterLines.join("")}
 
-        <div class="kv-row">
-          <div class="kv-key">IPアドレス</div>
-          <div class="kv-val">
-            <span class="badge ${ipOk === "OK" ? "ok" : "ng"}">${ipOk}</span>
-            <span class="kv-note">${report.basics.ip_address ? escapeHtml(report.basics.ip_address) : ""}</span>
+        <div class="kv-group" aria-label="IP情報">
+          <div class="kv-group-title">IP情報</div>
+
+          <div class="kv-group-body">
+            <div class="kv-row">
+              <div class="kv-key">IPv4アドレス</div>
+              <div class="kv-val">
+                <span class="badge ${ipv4Ok === "OK" ? "ok" : "ng"}">${ipv4Ok}</span>
+                <span class="kv-note">${report.basics.ipv4_address ? escapeHtml(report.basics.ipv4_address) : ""}</span>
+              </div>
+            </div>
+
+            <div class="kv-row">
+              <div class="kv-key">IPv6アドレス</div>
+              <div class="kv-val">
+                <span class="badge ${ipv6Ok === "OK" ? "ok" : "ng"}">${ipv6Ok}</span>
+                <span class="kv-note">${report.basics.ipv6_address ? escapeHtml(report.basics.ipv6_address) : ""}</span>
+              </div>
+            </div>
+
+            <div class="kv-row">
+              <div class="kv-key">優先（推定）</div>
+              <div class="kv-val">${escapeHtml(prefLabel)}</div>
+            </div>
           </div>
         </div>
 
@@ -329,6 +367,28 @@ function escapeHtml(text: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function parseGeneratedAt(raw: string): Date | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  // Prefer an ISO-like parse when possible.
+  const isoLike = trimmed.includes("T") ? trimmed : trimmed.replace(" ", "T");
+  const d1 = new Date(isoLike);
+  if (!Number.isNaN(d1.getTime())) return d1;
+
+  const d2 = new Date(trimmed);
+  if (!Number.isNaN(d2.getTime())) return d2;
+
+  return null;
+}
+
+function formatTimeHHMM(date: Date): string {
+  return date.toLocaleTimeString("ja-JP", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 async function autoResizeWindowToFitContent(): Promise<void> {
   try {
     const appWindow = getCurrentWindow();
@@ -372,8 +432,9 @@ async function runDiagnostics(): Promise<void> {
   const resultsEl = $("#results");
 
   btn.disabled = true;
-  statusEl.textContent = "診断中...";
-  resultsEl.textContent = "診断中...";
+  btn.textContent = "診断中…";
+  statusEl.textContent = "診断中…";
+  resultsEl.textContent = "診断中…";
 
   try {
     const urls = readUrlsFromInputs();
@@ -382,6 +443,7 @@ async function runDiagnostics(): Promise<void> {
     if (sites.length === 0) {
       statusEl.textContent = "未設定";
       resultsEl.textContent = "診断対象のURLが未設定です（最大5件まで登録できます）";
+      btn.textContent = "診断開始";
       return;
     }
 
@@ -389,11 +451,14 @@ async function runDiagnostics(): Promise<void> {
       sites,
     });
     resultsEl.innerHTML = renderResultsHtml(report);
-    statusEl.textContent = "完了";
+    const at = parseGeneratedAt(report.generated_at) ?? new Date();
+    statusEl.textContent = `診断完了（${formatTimeHHMM(at)}）／再診断できます`;
+    btn.textContent = "再診断";
 
     await autoResizeWindowToFitContent();
   } catch (e) {
-    statusEl.textContent = "失敗";
+    statusEl.textContent = `診断失敗（${formatTimeHHMM(new Date())}）／もう一度押して再試行できます`;
+    btn.textContent = "再診断";
     const msg = e instanceof Error ? e.message : String(e);
     resultsEl.textContent = `診断に失敗しました: ${msg}`;
   } finally {
